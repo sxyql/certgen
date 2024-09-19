@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#Tested on Ubuntu 20.04
 # Prompt for service name, IP common name, and DNS entries
 echo "This script will generate a certificate for a service."
 read -r -p "Enter service name: " SERVICE_NAME
