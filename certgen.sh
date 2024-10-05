@@ -1,11 +1,31 @@
 #!/bin/bash
-#Tested on Ubuntu 20.04
-# Prompt for service name, IP common name, and DNS entries
-echo "This script will generate a certificate for a service."
-read -r -p "Enter service name: " SERVICE_NAME
-read -r -p "Enter common name: " COMMON_NAME
-read -r -p "Enter DNS entries (comma-separated): " DNS_ENTRIES
-read -r -p "Enter IP addresses (comma-separated): " IP_ADDRESSES
+
+# Function to display help message
+usage() {
+    echo "Usage: $0 -servicename <service_name> -commonname <common_name> -dnsentries <dns_entries_comma_separated> -ipaddresses <ip_addresses_comma_separated>"
+    exit 1
+}
+
+# Parse command line arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -servicename) SERVICE_NAME="$2"; shift ;;
+        -commonname) COMMON_NAME="$2"; shift ;;
+        -dnsentries) DNS_ENTRIES="$2"; shift ;;
+        -ipaddresses) IP_ADDRESSES="$2"; shift ;;
+        *) usage ;;
+    esac
+    shift
+done
+
+# Check if all required parameters are provided
+if [ -z "$SERVICE_NAME" ] || [ -z "$COMMON_NAME" ] || [ -z "$DNS_ENTRIES" ] || [ -z "$IP_ADDRESSES" ]; then
+    usage
+fi
+
+# Prompt for CA password
+read -r -sp "Enter CA password: " CA_PASSWORD
+echo ""
 
 # Create a directory for the service
 mkdir -p "$SERVICE_NAME"
@@ -58,8 +78,8 @@ openssl genrsa -out "$SERVICE_NAME/$SERVICE_NAME-cert-key.pem" 4096
 # Generate the certificate signing request (CSR)
 openssl req -new -sha256 -subj "/CN=$COMMON_NAME" -key "$SERVICE_NAME/$SERVICE_NAME-cert-key.pem" -out "$SERVICE_NAME/$SERVICE_NAME-cert.csr" -config "$SERVICE_NAME/extfile.cnf" -extensions req_ext
 
-# Generate the certificate using the CA
-openssl x509 -req -sha256 -days 3650 -in "$SERVICE_NAME/$SERVICE_NAME-cert.csr" -CA /root/certs/CA/ca.pem -CAkey /root/certs/CA/ca-key.pem -out "$SERVICE_NAME/$SERVICE_NAME-cert.pem" -extfile "$SERVICE_NAME/extfile.cnf" -extensions v3_ca -CAcreateserial
+# Generate the certificate using the CA (CA password required)
+openssl x509 -req -sha256 -days 3650 -in "$SERVICE_NAME/$SERVICE_NAME-cert.csr" -CA /root/certs/CA/ca.pem -CAkey /root/certs/CA/ca-key.pem -out "$SERVICE_NAME/$SERVICE_NAME-cert.pem" -extfile "$SERVICE_NAME/extfile.cnf" -extensions v3_ca -CAcreateserial -passin pass:$CA_PASSWORD
 
 # Generate the fullchain file
 cat "$SERVICE_NAME/$SERVICE_NAME-cert.pem" /root/certs/CA/ca.pem > "$SERVICE_NAME/$SERVICE_NAME-fullchain.pem"
